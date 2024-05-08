@@ -28,15 +28,18 @@ async def query_table(db: db_dependancy, table: str, key: str = None):
             return("Khong co table!")
         with db.connection() as conn:
             if key == None:
-                sele = select(table)
+                sele = select(table_search)
                 result = conn.execute(sele)
             elif key.isnumeric():
                 sele = select(table_search).where(table_search.id == int(key))
                 result = conn.execute(sele)
-                # sele = text(f"SELECT * FROM {table} WHERE {table}.category_id = :value")
-                # result = conn.execute(sele, {"value": key})
             else:
-                sele = select(table_search)
+                check = db.query(table_search).filter(table_search.name == key).scalar()
+                if check != None:
+                    sele = select(table_search).where(table_search.name == key)
+                    print(sele)
+                else:
+                    sele = select(table_search)
                 result = conn.execute(sele)
         for row in result:
             print(row)
@@ -90,9 +93,12 @@ async def add_category(db: db_dependancy, table: str, id: int, content: str):
             return("Khong co table!")
         with db.connection() as conn:
             if id:
-                ins = insert(table_search).values(id = id, name = content)
-                conn.execute(ins)
-                conn.commit()
+                if content:
+                    ins = insert(table_search).values(id = id, name = content)
+                    conn.execute(ins)
+                    conn.commit()
+                else:
+                    return("missing content!")
             else:
                 return("missing id!")
     except Exception as e:
