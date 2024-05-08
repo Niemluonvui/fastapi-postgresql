@@ -17,14 +17,6 @@ class Users(BaseModel):
     id: int
     email: str
     items: List[Items]
-    
-class Cate(BaseModel):
-    category_id: int
-    name: str
-    
-class country(BaseModel):
-    country_id: int
-    country_name: str
 
 @app.get("/")
 async def root():
@@ -39,19 +31,43 @@ def get_db():
         
 db_dependancy = Annotated[Session, Depends(get_db)]
 
-@app.get("/category/query/{id}")
-async def query_category_id(db: db_dependancy, id: int):
-    db_category = db.query(models.Category).filter_by(category_id = id).all()
-    print(db_category[0].category_id)
-    print(db_category[0].name)
-    return ( db_category[0].name )
+@app.get("/category/delete/")
+async def delete_category(db: db_dependancy, id: int = None, name: str = None):
+    if id:
+        dele = delete(models.category).where(models.category.category_id==id)
+    elif name:
+        dele = delete(models.category).where(models.category.name==name)
+    else:
+        return ("missing id or text")
+    
+    engine.execute(dele)
+    
+    return ("done!")
 
-@app.get("/category/query/{name}")
-async def query_category_id(db: db_dependancy, name: str):
-    db_category = db.query(models.Category).filter_by(name = name).all()
-    print(db_category[0].category_id)
-    print(db_category[0].name)
-    return ( db_category[0].category_id )
+@app.get("/category/update/")
+async def update_category(db: db_dependancy, id: int = None, name: str = None):
+    if id:
+        db_category = db.query(models.category).filter_by(category_id = id).all()
+        upd = update(models.category).values({"name": name}).where(models.category.category_id == id)
+        engine.execute(upd)
+        return ("done!")
+    else:
+        return ("missing id!")
+
+@app.get("/category/query/")
+async def query_category(db: db_dependancy, id: int = None, name: str = None):
+    if id:
+        db_category = db.query(models.category).filter_by(category_id = id).all()
+    elif name == 'all':
+        db_category = db.query(models.category).all()
+    elif name:
+        db_category = db.query(models.category).filter_by(name = name).all()
+    else:
+        return ("not query any")
+    
+    for result in db_category:
+        print(result.name)
+        print(str(result.category_id) + "\n")
 
 @app.get("/category/")
 async def add_category(db: db_dependancy, id: int, name: str = None):

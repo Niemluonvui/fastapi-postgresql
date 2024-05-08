@@ -17,13 +17,13 @@ class Item(Base):
     id = Column(Integer, primary_key=True)
     title = Column(String, index=True)
     
-class Category(Base):
+class category(Base):
     __tablename__ = "category"
 
     category_id = Column(Integer, primary_key=True)
     name = Column(String, unique=True, index=True)
     
-class Country(Base):
+class country(Base):
     __tablename__ = "country"
 
     country_id = Column(Integer, primary_key=True)
