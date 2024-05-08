@@ -24,6 +24,8 @@ db_dependancy = Annotated[Session, Depends(get_db)]
 async def query_table(db: db_dependancy, table: str, key: str = None):
     try:
         table_search = tables_dict.get(table)
+        if table_search == None:
+            return("Khong co table!")
         with db.connection() as conn:
             if key == None:
                 sele = select(table)
@@ -38,14 +40,16 @@ async def query_table(db: db_dependancy, table: str, key: str = None):
                 result = conn.execute(sele)
         for row in result:
             print(row)
-    except:
-        raise HTTPException()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/{table}/delete/{key}")
 async def delete_table(db: db_dependancy, table: str, key: str = None):
     try:
+        table_search = tables_dict.get(table)
+        if table_search == None:
+            return("Khong co table!")
         with db.connection() as conn:
-            table_search = tables_dict.get(table)
             if key.isnumeric():
                 dele = delete(table_search).where(table_search.id==int(key))
             elif key != None:
@@ -54,41 +58,42 @@ async def delete_table(db: db_dependancy, table: str, key: str = None):
                 return ("missing id or text")
             
             conn.execute(dele)
-            
+            conn.commit()
             return ("done!")
-    except:
-        raise HTTPException()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/{table}/update/{id}/{content}")
 async def update_table(db: db_dependancy, table: str, id: int, content: str):    
     try:
+        table_search = tables_dict.get(table)
+        if table_search == None:
+            return("Khong co table!")
         with db.connection() as conn:
-            table_search = tables_dict.get(table)
             if id:
-                upd = update(table_search).values({"name": content}).where(table_search.id == id)
-                engine.execute(upd).fetchall()
+                if content:
+                    upd = update(table_search).where(table_search.id == id).values( name = content)
+                    conn.execute(upd)
+                    conn.commit()
+                else:
+                    return("missing content!")
             else:
                 return("missing id!")
-    except:
-        raise HTTPException()
-
-@app.put("/{table}/insert/{id}/{content}")
-async def query_category(db: db_dependancy, table: str, id: int, content: str):
-    try:
-        with db.connection() as conn:
-            table_search = tables_dict.get(table)
-            if id:
-                upd = insert(table_search).values({"id": id, "name": content})
-                engine.execute(upd).fetchall()
-            else:
-                return("missing id!")
-    except:
-        raise HTTPException()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @app.post("/{table}/insert/{id}/{content}")
 async def add_category(db: db_dependancy, table: str, id: int, content: str):
-    db_category = category(id= id, name=name)
-    db.add(db_category)
-    db.commit()
-    return db_category
-
+    try:
+        table_search = tables_dict.get(table)
+        if table_search == None:
+            return("Khong co table!")
+        with db.connection() as conn:
+            if id:
+                ins = insert(table_search).values(id = id, name = content)
+                conn.execute(ins)
+                conn.commit()
+            else:
+                return("missing id!")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
