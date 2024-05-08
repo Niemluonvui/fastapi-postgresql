@@ -1,22 +1,11 @@
 from fastapi import FastAPI, HTTPException, Depends
-from typing import List, Annotated
-from pydantic import BaseModel
-import models
+from typing import Annotated
+from models import tables_dict
 from database import engine, SessionLocal
 from sqlalchemy.orm import Session
 from sqlalchemy import insert, delete, update, select
 
 app = FastAPI()
-models.Base.metadata.create_all(bind=engine)
-    
-class Items(BaseModel):
-    id: int
-    title: str
-    
-class Users(BaseModel):
-    id: int
-    email: str
-    items: List[Items]
 
 @app.get("/")
 async def root():
@@ -31,47 +20,74 @@ def get_db():
         
 db_dependancy = Annotated[Session, Depends(get_db)]
 
-@app.get("/category/delete/")
-async def delete_category(db: db_dependancy, id: int = None, name: str = None):
-    if id:
-        dele = delete(models.category).where(models.category.category_id==id)
-    elif name:
-        dele = delete(models.category).where(models.category.name==name)
-    else:
-        return ("missing id or text")
-    
-    engine.execute(dele)
-    
-    return ("done!")
+@app.get("/{table}/query/{key}")
+async def query_table(db: db_dependancy, table: str, key: str = None):
+    try:
+        table_search = tables_dict.get(table)
+        with db.connection() as conn:
+            if key == None:
+                sele = select(table)
+                result = conn.execute(sele)
+            elif key.isnumeric():
+                sele = select(table_search).where(table_search.id == int(key))
+                result = conn.execute(sele)
+                # sele = text(f"SELECT * FROM {table} WHERE {table}.category_id = :value")
+                # result = conn.execute(sele, {"value": key})
+            else:
+                sele = select(table_search)
+                result = conn.execute(sele)
+        for row in result:
+            print(row)
+    except:
+        raise HTTPException()
 
-@app.get("/category/update/")
-async def update_category(db: db_dependancy, id: int = None, name: str = None):
-    if id:
-        db_category = db.query(models.category).filter_by(category_id = id).all()
-        upd = update(models.category).values({"name": name}).where(models.category.category_id == id)
-        engine.execute(upd)
-        return ("done!")
-    else:
-        return ("missing id!")
+@app.post("/{table}/delete/{key}")
+async def delete_table(db: db_dependancy, table: str, key: str = None):
+    try:
+        with db.connection() as conn:
+            table_search = tables_dict.get(table)
+            if key.isnumeric():
+                dele = delete(table_search).where(table_search.id==int(key))
+            elif key != None:
+                dele = delete(table_search).where(table_search.name==key)
+            else:
+                return ("missing id or text")
+            
+            conn.execute(dele)
+            
+            return ("done!")
+    except:
+        raise HTTPException()
 
-@app.get("/category/query/")
-async def query_category(db: db_dependancy, id: int = None, name: str = None):
-    if id:
-        db_category = db.query(models.category).filter_by(category_id = id).all()
-    elif name == 'all':
-        db_category = db.query(models.category).all()
-    elif name:
-        db_category = db.query(models.category).filter_by(name = name).all()
-    else:
-        return ("not query any")
-    
-    for result in db_category:
-        print(result.name)
-        print(str(result.category_id) + "\n")
+@app.post("/{table}/update/{id}/{content}")
+async def update_table(db: db_dependancy, table: str, id: int, content: str):    
+    try:
+        with db.connection() as conn:
+            table_search = tables_dict.get(table)
+            if id:
+                upd = update(table_search).values({"name": content}).where(table_search.id == id)
+                engine.execute(upd).fetchall()
+            else:
+                return("missing id!")
+    except:
+        raise HTTPException()
 
-@app.get("/category/")
-async def add_category(db: db_dependancy, id: int, name: str = None):
-    db_category = models.Category(category_id= id, name=name)
+@app.put("/{table}/insert/{id}/{content}")
+async def query_category(db: db_dependancy, table: str, id: int, content: str):
+    try:
+        with db.connection() as conn:
+            table_search = tables_dict.get(table)
+            if id:
+                upd = insert(table_search).values({"id": id, "name": content})
+                engine.execute(upd).fetchall()
+            else:
+                return("missing id!")
+    except:
+        raise HTTPException()
+
+@app.post("/{table}/insert/{id}/{content}")
+async def add_category(db: db_dependancy, table: str, id: int, content: str):
+    db_category = category(id= id, name=name)
     db.add(db_category)
     db.commit()
     return db_category
